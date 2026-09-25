@@ -38,6 +38,9 @@ ApplicationWindow {
     property string pendingAction: ""
     property bool replaceOpen: false
     property bool awaitingPendingSave: false
+    // View mode shows the rendered document; edit mode shows the source.
+    // Opening a file starts in view mode, an empty document in edit mode.
+    property bool previewVisible: false
 
     Material.theme: darkMode ? Material.Dark : Material.Light
     Material.accent: backend.themeAccent
@@ -197,6 +200,15 @@ ApplicationWindow {
     }
 
     Shortcut {
+        sequence: "Ctrl+Shift+V"
+        context: Qt.ApplicationShortcut
+        onActivated: {
+            win.previewVisible = !win.previewVisible;
+            if (!win.previewVisible)
+                editor.forceActiveFocus();
+        }
+    }
+    Shortcut {
         sequence: "Ctrl+P"
         context: Qt.ApplicationShortcut
         onActivated: backend.printDocument()
@@ -258,6 +270,11 @@ ApplicationWindow {
             win.awaitingPendingSave = false;
             if (win.pendingAction !== "")
                 win.completePendingAction();
+        }
+
+        function onFileUrlChanged() {
+            // Opening a document starts in view mode; a blank document is edit.
+            win.previewVisible = backend.fileUrl.toString() !== "";
         }
 
         function onExternalChangeDetected(deleted, locallyModified) {
@@ -331,7 +348,7 @@ ApplicationWindow {
         standardButtons: Dialog.Close
         anchors.centerIn: parent
         contentItem: Label {
-            text: "Ctrl+S  Save\nCtrl+Shift+S  Save As\nCtrl+O  Open\nCtrl+N  New Window\nCtrl+F  Find\nCtrl+H  Find and Replace\nCtrl+B  Bold\nCtrl+I  Italic\nCtrl+K  Link\nCtrl+P  Print\nF11 / Super+F  Fullscreen\nCtrl+?  Shortcuts"
+            text: "Ctrl+S  Save\nCtrl+Shift+S  Save As\nCtrl+O  Open\nCtrl+N  New Window\nCtrl+F  Find\nCtrl+H  Find and Replace\nCtrl+B  Bold\nCtrl+I  Italic\nCtrl+K  Link\nCtrl+Shift+V  Edit/View\nCtrl+P  Print\nF11 / Super+F  Fullscreen\nCtrl+?  Shortcuts"
             lineHeight: 1.5
         }
     }
@@ -344,6 +361,7 @@ ApplicationWindow {
             anchors.fill: parent
             anchors.leftMargin: 24
             anchors.rightMargin: 24
+            visible: !win.previewVisible
             clip: true
             contentWidth: width
             contentHeight: Math.max(height, editor.y + editor.implicitHeight + 220)
@@ -534,7 +552,7 @@ ApplicationWindow {
                 objectName: "sourceEditor"
                 x: Math.round((editorFlick.width - width) / 2)
                 y: Math.max(42, Math.round(win.height * 0.05))
-                width: win.editorWidth
+                width: Math.min(win.editorWidth, editorFlick.width)
                 height: Math.max(editorFlick.height - y - 96, implicitHeight + 20)
                 text: ""
                 textFormat: TextEdit.PlainText
@@ -771,6 +789,7 @@ ApplicationWindow {
                 }
 
                 onTextChanged: {
+                    previewDebounce.restart();
                     if (win.searchUpdating)
                         return;
                     var contentChanged = backend.editorTextChanged();
@@ -796,6 +815,48 @@ ApplicationWindow {
             }
         }
 
+
+        Flickable {
+            id: previewFlick
+            anchors.fill: parent
+            anchors.leftMargin: 24
+            anchors.rightMargin: 24
+            clip: true
+            contentWidth: width
+            contentHeight: Math.max(height, previewText.y + previewText.implicitHeight + 220)
+            boundsBehavior: Flickable.StopAtBounds
+            visible: win.previewVisible
+            ScrollBar.vertical: ScrollBar {
+                policy: ScrollBar.AsNeeded
+                bottomPadding: win.scaledSize(32)
+                bottomInset: win.scaledSize(32)
+            }
+
+            Timer {
+                id: previewDebounce
+                interval: 200
+                onTriggered: previewText.text = editor.text
+            }
+
+            TextEdit {
+                id: previewText
+                objectName: "previewPane"
+                x: Math.round((previewFlick.width - width) / 2)
+                y: Math.max(42, Math.round(win.height * 0.05))
+                width: Math.min(win.editorWidth, previewFlick.width)
+                height: Math.max(previewFlick.height - y - 96, implicitHeight + 20)
+                readOnly: true
+                textFormat: TextEdit.MarkdownText
+                wrapMode: TextEdit.Wrap
+                selectByMouse: true
+                color: win.textColor
+                onLinkActivated: function(link) { backend.openExternalUrl(link) }
+                font.pixelSize: win.scaledSize(17)
+
+                Component.onCompleted: previewDebounce.restart()
+            }
+        }
+
         Row {
             id: footerStatus
             anchors.left: parent.left
@@ -811,6 +872,18 @@ ApplicationWindow {
                 iconColor: win.mutedColor
                 tooltip: "Save"
                 onClicked: backend.save()
+            }
+
+            FooterIconButton {
+                objectName: "previewButton"
+                iconName: "preview"
+                iconColor: win.previewVisible ? backend.themeAccent : win.mutedColor
+                tooltip: win.previewVisible ? "Edit (Ctrl+Shift+V)" : "View (Ctrl+Shift+V)"
+                onClicked: {
+                    win.previewVisible = !win.previewVisible;
+                    if (!win.previewVisible)
+                        editor.forceActiveFocus();
+                }
             }
 
             FooterIconButton {
