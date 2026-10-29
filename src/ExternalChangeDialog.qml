@@ -89,7 +89,6 @@ Dialog {
             SquareDialogButton {
                 id: reloadButton
                 text: "Reload"
-                enabled: !root.deleted
                 primary: true
                 darkMode: root.darkMode
                 textScale: root.textScale
