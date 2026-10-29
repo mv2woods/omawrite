@@ -20,7 +20,9 @@ Button {
 
     contentItem: Label {
         text: control.text
-        color: control.labelColor
+        color: !control.enabled
+            ? (control.darkMode ? "#616161" : "#b4b6b8")
+            : control.labelColor
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
         font.family: "iA Writer Mono S"
@@ -31,17 +33,21 @@ Button {
         implicitWidth: 88
         implicitHeight: 34
         radius: 0
-        color: control.primary
-            ? (control.down ? "#347ab3" : control.hovered ? "#4b96d0" : control.activeColor)
-            : control.down
-                ? (control.darkMode ? "#2a2a2a" : "#dedede")
-                : control.hovered
-                    ? (control.darkMode ? "#242424" : "#eeeeee")
-                    : (control.darkMode ? "#202020" : "#f6f6f6")
-        border.color: control.activeFocus
-            ? (control.darkMode ? "#eeeeee" : "#222324")
+        color: !control.enabled
+            ? (control.darkMode ? "#191919" : "#f0f0f0")
             : control.primary
-                ? "#367eb7"
-                : (control.darkMode ? "#424242" : "#c8c8c8")
+                ? (control.down ? "#347ab3" : control.hovered ? "#4b96d0" : control.activeColor)
+                : control.down
+                    ? (control.darkMode ? "#2a2a2a" : "#dedede")
+                    : control.hovered
+                        ? (control.darkMode ? "#242424" : "#eeeeee")
+                        : (control.darkMode ? "#202020" : "#f6f6f6")
+        border.color: !control.enabled
+            ? (control.darkMode ? "#282828" : "#dcdcdc")
+            : control.activeFocus
+                ? (control.darkMode ? "#eeeeee" : "#222324")
+                : control.primary
+                    ? "#367eb7"
+                    : (control.darkMode ? "#424242" : "#c8c8c8")
     }
 }
